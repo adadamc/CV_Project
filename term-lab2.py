@@ -28,17 +28,17 @@ print("")
 
 
 # Template Code
-T = cv.imread('../data/traffic-stop-signs/template-1-1.png')
+T = cv.imread('data/traffic-stop-signs/template-1-1.png')
 T = cv.cvtColor(T, cv.COLOR_BGR2RGB)
 T = cv.resize(T, (64,64))
 
 # Template Code (Traffic Light)
-TL = cv.imread('../data/traffic-stop-signs/traffic-light-template.jpg')
+TL = cv.imread('data/traffic-stop-signs/traffic-light-template.jpg')
 TL = cv.cvtColor(T, cv.COLOR_BGR2RGB)
 TL = cv.resize(T, (64,64))
 
 # Template Code (Speed Limit)
-TS = cv.imread('../data/traffic-stop-signs/speed-limit.jpg')
+TS = cv.imread('data/traffic-stop-signs/speed-limit.jpg')
 TS = cv.cvtColor(T, cv.COLOR_BGR2RGB)
 TS = cv.resize(T, (64,64))
 
