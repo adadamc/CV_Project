@@ -43,12 +43,12 @@ TS = cv.cvtColor(T, cv.COLOR_BGR2RGB)
 TS = cv.resize(T, (64,64))
 
 # Minimum Confidence (Folder command line arg)
-min_conf = 0.45 # I observed more (false positives + false negatives) at values below/above 0.41
+min_conf = 0.35 # I observed more (false positives + false negatives) at values below/above 0.41
 min_conf_speed = 0.35
 
 # SETTINGS
 textStops = True
-stopConf = 0.5
+stopConf = 0.8
 
 
 # https://medium.com/@adityamahajan.work/easyocr-a-comprehensive-guide-5ff1cb850168
@@ -58,7 +58,7 @@ def find_text(I, speedBoundingBox):
     boundingBoxesOverlap = False
     result = reader.readtext(I)
     for (bbox, text, prob) in result:
-        #print(f'Text: {text}, Probability: {prob}')
+        print(f'Text: {text}, Probability: {prob}')
         if str.lower(text) == "stop":
             if prob > stopConf:
                 foundStop = True
@@ -119,7 +119,7 @@ def find_stop_sign(T, I, conf):
     #print("Image List Length:", len(boo))
     for i in boo:
         if i.shape[0] < T.shape[0]: # Actual Image should not be smaller than the template (not having this continue statement results in everything being detected as a stop sign)
-            # Shape dimension of the image is smaller than the template, don't check this iteration
+             #Shape dimension of the image is smaller than the template, don't check this iteration
             continue
         R_temp = cv.matchTemplate(i, T, eval(method))
         loc_temp, val_temp = find_loc_and_value_in_R(R_temp, use_max=True)
@@ -140,10 +140,7 @@ def find_stop_sign(T, I, conf):
     if(val < conf): # Check if the highest confidence value found is above the threshold set
         return np.array([0, 0, 1, 1]).astype(int) # Under threshold
     else:
-        try:
-            return np.array([loc[0] * 2**lvl, loc[1] * 2**lvl, w_t, h_t]).astype(int) # Scale loc values back up based on the level of the pyramid.
-        except OverflowError:
-            return np.array([1, 10, w_t, h_t]).astype(int)
+        return np.array([loc[0] * 2**lvl, loc[1] * 2**lvl, w_t, h_t]).astype(int) # Scale loc values back up based on the level of the pyramid.
 
 
 def highlight(R, T, I, use_max=True):
@@ -285,6 +282,8 @@ def processImages(folder):
 
     speedsFound = {}
 
+    wrongFlips = []
+
     
     print(f"{'filename':<15} | {'stop detected':^15} | {'stop ground truth':^15} | {'traffic detected':^20} | {'traffic ground truth':^20} | {'sp limit detected':^20} | {'sp limit ground truth':^22}") # Print header
     print("")
@@ -307,11 +306,13 @@ def processImages(folder):
         image = cv.imread(imagePath) # Read from the imagePath
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
+        # Put Image through Image Pyrimad
         bbox = find_stop_sign(T, image, min_conf)
         bboxTL = find_stop_sign(TL, image, min_conf)
         bboxTS = find_stop_sign(TS, image, min_conf_speed)
 
-        print(bboxTS)
+
+        #print(bboxTS)
 
         xml_path = imagePath.replace("images","annotations") # Modify the image path to find the corresponding XML
         xml_path = xml_path.replace("png","xml")
@@ -381,6 +382,9 @@ def processImages(folder):
                     correctFlipsSpeed += 1
                 else:
                     wrongFlipsSpeed += 1
+                    falsePositivesSpeed += 1
+                    wrongFlips.append(imagePathOrig)
+                    #speedsFound[imagePathOrig] = "INCORRECT FLIP | " + str(returnValSpeed) + "  |  " + str(bbOverlap)
 
             elif groundTruthSpeed == "Yes": # Ground Truth says yes though, therefore false negative
                 falseNegativesSpeed += 1
@@ -425,6 +429,7 @@ def processImages(folder):
     print("Speed OCR Flips Negative->Positive:", OCRFlipCountSpeed)
     print("Correct Flips:", correctFlipsSpeed)
     print("Incorrect Flips:", wrongFlipsSpeed)
+    print("Incorrect Speed Flips: ", wrongFlips)
     print("")
     print("Total Time Taken:", int((end-start)*1000), "ms") # Convert seconds to ms (*1000)
 
@@ -434,6 +439,7 @@ def processImages(folder):
         with open(filename, 'w') as f:
             for key, value in speedsFound.items():
                 f.write(f"{key}: {value}\n")
+        print(len(speedsFound), " entries added to text document!")
         print(f"Dictionary successfully written to {filename}")
 
     except Exception as e:
