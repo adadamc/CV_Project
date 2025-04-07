@@ -20,6 +20,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patheffects as path_effects
 import time
 import argparse
+import math
+import statistics
+
 
 reader = easyocr.Reader(['en'])
 print("")
@@ -56,6 +59,10 @@ def find_text(I, speedBoundingBox):
     foundStop = False
     foundSpeed = False
     boundingBoxesOverlap = False
+
+    closestDistance = None
+    bestSpeed = None
+
     result = reader.readtext(I)
     for (bbox, text, prob) in result:
         print(f'Text: {text}, Probability: {prob}')
@@ -66,8 +73,13 @@ def find_text(I, speedBoundingBox):
         pattern = r"^\d{1,3}$"
         if(bool(re.match(pattern, s_no_whitespace)) and prob > stopConf and boundingBoxesOverlap == False):
             foundSpeed = text
+            if bestSpeed == None:
+                bestSpeed = foundSpeed
             easyOCRX = [bbox[0][0], bbox[1][0], bbox[2][0], bbox[3][0]]
             easyOCRY = [bbox[0][1], bbox[1][1], bbox[2][1], bbox[3][1]]
+
+            easyXCenter = statistics.mean(easyOCRX)
+            easyYCenter = statistics.mean(easyOCRY)
 
             if type(speedBoundingBox) != bool:
                 print("Not bool")
@@ -76,6 +88,9 @@ def find_text(I, speedBoundingBox):
                 maxX = speedBoundingBox[0] + speedBoundingBox[2]
                 maxY = speedBoundingBox[1] + speedBoundingBox[3]
 
+                avgX = (minX + maxX)/2
+                avgY = (minY + maxY)/2
+
                 print("Cond 1: ", max(easyOCRX), ">=", minX)
                 print("Cond 2: ", min(easyOCRX), "<=", maxX)
                 print("Cond 3: ", max(easyOCRY), ">=", minY)
@@ -83,11 +98,24 @@ def find_text(I, speedBoundingBox):
                 if (max(easyOCRX) >= minX or min(easyOCRX) <= maxX) and (max(easyOCRY) >= minY or min(easyOCRY) <= maxY):
                     print("All conditions met!")
                     boundingBoxesOverlap = True
+                    
+                    # Using Pythagorean theorem
+                    theDistanceX = abs(avgX-easyXCenter)
+                    theDistanceY = abs(avgY-easyYCenter)
+                    theDistance = math.sqrt((theDistanceX**2) + (theDistanceY**2))
+
+                    if(bestSpeed == None or closestDistance == None):
+                        closestDistance = theDistance
+                        bestSpeed = text
+                    elif (theDistance < closestDistance):
+                        closestDistance = theDistance
+                        bestSpeed = text
+
 
                 print("Speed text found at:", bbox)
                 print("Speed sign found at:", speedBoundingBox)
     print("Returning: ", boundingBoxesOverlap)
-    return foundStop, foundSpeed, boundingBoxesOverlap
+    return foundStop, bestSpeed, boundingBoxesOverlap
 
 
 def find_stop_sign(T, I, conf):
